@@ -24,9 +24,11 @@ jobs:
       - name: Build and verify
         run: mvn -B clean verify
 
-      - name: Upload test reports
+            - name: Upload test and coverage reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports
-          path: target/surefire-reports/
+          name: build-reports
+          path: |
+            target/surefire-reports/
+            target/site/jacoco/
