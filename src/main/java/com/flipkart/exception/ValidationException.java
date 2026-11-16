@@ -34,7 +34,7 @@ public class ValidationException extends ECommerceException {
 		if (errors == null || errors.isEmpty()) {
 			throw new IllegalArgumentException("errors must not be null or empty");
 		}
-		return String.join(";", errors);
+		return String.join("; ", errors);
 	}
 	
 }
