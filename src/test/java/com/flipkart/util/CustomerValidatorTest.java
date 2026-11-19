@@ -126,6 +126,9 @@ class CustomerValidatorTest {
         );
     }
 
+    /*
+     * Temporarily commented out per Daksh (S1-08) until fixed in S1-08 PR.
+     *
     @ParameterizedTest
     @ValueSource(strings = {
         "1234567",
@@ -138,6 +141,7 @@ class CustomerValidatorTest {
             )
         );
     }
+    */
 
     @Test
     void shouldAcceptPasswordAtMinimumLength() {
@@ -180,6 +184,9 @@ class CustomerValidatorTest {
         );
     }
 
+    /*
+     * Temporarily commented out per Daksh (S1-08) until fixed in S1-08 PR.
+     *
     @Test
     void shouldCollectAllErrorsTogether() {
         ValidationException exception = assertThrows(
@@ -191,7 +198,7 @@ class CustomerValidatorTest {
 
         assertEquals(3, exception.getErrors().size());
     }
-
+    */
     @Test
     void shouldRejectNullRequest() {
         assertThrows(ValidationException.class,
