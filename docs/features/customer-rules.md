@@ -96,3 +96,63 @@ CustomerRegistrationServiceImpl (S1-12):
 - Hashes password.
 - Creates and saves Customer.
 - Writes audit record after successful save.
+
+# BR-A05 — Customer Login ID Generation
+
+**Status:** Approved by Nitin Kumar.
+
+## 1. ID Format
+- Customer Login ID must contain exactly 7 digits.
+- First 5 digits are derived from the normalized customer name.
+- Last 2 digits are taken from the mobile number.
+- Return the ID as a String to preserve leading zeros.
+
+## 2. Name Normalization
+- Reject null or blank names.
+- Convert uppercase English letters to lowercase.
+- Retain only English letters (a-z).
+- Remove spaces, digits, punctuation and special characters.
+- Reject names containing no English letters after normalization.
+
+## 3. Name Hash Algorithm
+
+Use a polynomial rolling hash with base 31.
+
+hash = 0
+
+For each character:
+    hash = (31 * hash + characterPosition) % 100000
+
+Character positions:
+a = 1, b = 2, ... z = 26
+
+The resulting hash is the initial prefix.
+
+## 4. Mobile Number
+- Follow BR-A03: exactly 10 digits.
+- First digit must be 6, 7, 8 or 9.
+- Use the last two digits as the ID suffix.
+
+## 5. Collision Handling
+- Check the generated ID using the supplied Predicate<String>.
+- If the ID exists, increment the prefix by one.
+- Wrap from 99999 to 00000.
+- Try at most 100000 prefixes.
+- If all IDs are occupied, throw IdGenerationException.
+
+## 6. Worked Examples
+
+| Name | Normalized | Prefix | Mobile | Login ID |
+|---|---|---|---|---|
+| Al | al | 00043 | 9876543210 | 0004310 |
+| Daksh Arya | daksharya | 94268 | 9876543245 | 9426845 |
+| Sam Lee | samlee | 76365 | 9876543282 | 7636582 |
+| Riya Sharma | riyasharma | 75033 | 9876543267 | 7503367 |
+| Al (collision) | al | 00044 | 9876543210 | 0004410 |
+
+## 7. Implementation Helpers
+- nameHash(String name)
+- nextPrefix(int prefix)
+- buildId(int prefix, String mobile)
+
+These helpers will be package-visible static methods for unit testing.

@@ -131,9 +131,8 @@ class CustomerValidatorTest {
      *
     @ParameterizedTest
     @ValueSource(strings = {
-        "1234567",
-        "12345678"
-    })
+            "1234567"
+        })
     void shouldRejectPasswordBelowEightCharacters(String password) {
         assertThrows(ValidationException.class, () ->
             CustomerValidator.validateRegistration(
@@ -196,7 +195,7 @@ class CustomerValidatorTest {
             )
         );
 
-        assertEquals(3, exception.getErrors().size());
+        assertEquals(4, exception.getErrors().size());
     }
     */
     @Test
