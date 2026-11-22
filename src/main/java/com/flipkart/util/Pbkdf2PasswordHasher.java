@@ -1,21 +1,24 @@
+
 package com.flipkart.util;
 
-import com.flipkart.exception.ValidationException;
-
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
-import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.List;
+import java.util.Arrays;
+
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+
+import com.flipkart.exception.ValidationException;
 
 public class Pbkdf2PasswordHasher implements PasswordHasher {
 
     private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
     private static final int SALT_LENGTH = 16;
     private static final int KEY_LENGTH = 256;
+    private static final int MAX_ITERATIONS = 10_000_000;
 
     private final int iterations;
     private final SecureRandom secureRandom;
@@ -25,9 +28,9 @@ public class Pbkdf2PasswordHasher implements PasswordHasher {
     }
 
     public Pbkdf2PasswordHasher(int iterations) {
-        if (iterations <= 0) {
-            throw new IllegalArgumentException(
-                    "iterations must be greater than zero");
+
+        if (iterations <= 0 || iterations > MAX_ITERATIONS) {
+            throw new IllegalArgumentException("Invalid iterations");
         }
 
         this.iterations = iterations;
@@ -37,102 +40,83 @@ public class Pbkdf2PasswordHasher implements PasswordHasher {
     @Override
     public String hash(String raw) {
 
-        validatePassword(raw);
+        if (raw == null || raw.isBlank()) {
+            throw new ValidationException(
+                    List.of("Password must not be blank"));
+        }
+
+        byte[] salt = new byte[SALT_LENGTH];
+        secureRandom.nextBytes(salt);
 
         try {
-            byte[] salt = new byte[SALT_LENGTH];
-            secureRandom.nextBytes(salt);
+            byte[] hash = pbkdf2(raw.toCharArray(), salt, iterations);
 
-            byte[] hash = pbkdf2(
-                    raw.toCharArray(),
-                    salt,
-                    iterations);
-
-            String saltBase64 =
-                    Base64.getEncoder().encodeToString(salt);
-
-            String hashBase64 =
-                    Base64.getEncoder().encodeToString(hash);
-
-            return iterations
-                    + ":"
-                    + saltBase64
-                    + ":"
-                    + hashBase64;
+            return iterations + ":"
+                    + Base64.getEncoder().encodeToString(salt) + ":"
+                    + Base64.getEncoder().encodeToString(hash);
 
         } catch (GeneralSecurityException e) {
-            throw new IllegalStateException(
-                    "Unable to hash password",
-                    e);
+            throw new IllegalStateException("Hashing failed", e);
         }
     }
 
     @Override
     public boolean verify(String raw, String stored) {
 
-        if (raw == null || stored == null || stored.isBlank()) {
+        if (raw == null || raw.isBlank() ||
+                stored == null || stored.isBlank()) {
             return false;
         }
 
         try {
-
-            String[] parts = stored.split(":");
+            String[] parts = stored.split(":", -1);
 
             if (parts.length != 3) {
                 return false;
             }
 
-            int storedIterations =
-                    Integer.parseInt(parts[0]);
+            int storedIterations = Integer.parseInt(parts[0]);
 
-            byte[] salt =
-                    Base64.getDecoder().decode(parts[1]);
+            if (storedIterations <= 0 ||
+                    storedIterations > MAX_ITERATIONS) {
+                return false;
+            }
 
-            byte[] expectedHash =
-                    Base64.getDecoder().decode(parts[2]);
+            byte[] salt = Base64.getDecoder().decode(parts[1]);
+            byte[] expectedHash = Base64.getDecoder().decode(parts[2]);
 
-            byte[] actualHash =
-                    pbkdf2(
-                            raw.toCharArray(),
-                            salt,
-                            storedIterations);
+            if (salt.length != SALT_LENGTH ||
+                    expectedHash.length != KEY_LENGTH / 8) {
+                return false;
+            }
 
-            return MessageDigest.isEqual(
-                    expectedHash,
-                    actualHash);
+            byte[] actualHash = pbkdf2(
+                    raw.toCharArray(), salt, storedIterations);
 
-        } catch (Exception e) {
+            return MessageDigest.isEqual(expectedHash, actualHash);
+
+        } catch (GeneralSecurityException | IllegalArgumentException e) {
             return false;
         }
     }
 
-    private void validatePassword(String raw) {
-
-        if (raw == null || raw.isBlank()) {
-            throw new ValidationException(
-                    List.of("Password must not be blank"));
-        }
-    }
-
     private byte[] pbkdf2(
-            char[] password,
-            byte[] salt,
-            int iterations)
+            char[] password, byte[] salt, int iterations)
             throws GeneralSecurityException {
 
         PBEKeySpec spec =
-                new PBEKeySpec(
-                        password,
-                        salt,
-                        iterations,
-                        KEY_LENGTH);
+                new PBEKeySpec(password, salt, iterations, KEY_LENGTH);
 
-        SecretKeyFactory factory =
-                SecretKeyFactory.getInstance(ALGORITHM);
+        try {
+            SecretKeyFactory factory =
+                    SecretKeyFactory.getInstance(ALGORITHM);
 
-        return factory
-                .generateSecret(spec)
-                .getEncoded();
+            return factory.generateSecret(spec).getEncoded();
+
+        } finally {
+            spec.clearPassword();
+            Arrays.fill(password, '\0');
+        }
     }
 
     public int getIterations() {

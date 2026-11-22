@@ -209,4 +209,43 @@ class Pbkdf2PasswordHasherTest {
                         java.util.Base64.getDecoder().decode(parts[2]))
         );
     }
+    /**
+     * @author md-masood
+     */
+    @Test
+    @DisplayName("AC1: Salt is 16 bytes and hash is 32 bytes")
+    void hash_generatesExpectedSaltAndHashLengths() {
+
+        Pbkdf2PasswordHasher hasher =
+                new Pbkdf2PasswordHasher(1000);
+
+        String stored = hasher.hash(PASSWORD);
+
+        String[] parts = stored.split(":", -1);
+
+        byte[] salt = java.util.Base64.getDecoder()
+                .decode(parts[1]);
+
+        byte[] hash = java.util.Base64.getDecoder()
+                .decode(parts[2]);
+
+        assertEquals(16, salt.length);
+        assertEquals(32, hash.length);
+    }
+    
+    /**
+     * @author md-masood
+     */
+    @Test
+    @DisplayName("Invalid iteration count should be rejected")
+    void constructor_invalidIterations_throwsException() {
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Pbkdf2PasswordHasher(0));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Pbkdf2PasswordHasher(-1));
+    }
 }
