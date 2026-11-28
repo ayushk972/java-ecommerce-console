@@ -1,4 +1,8 @@
+/**
+ * @author Aaditya Kumar
+ */
 package com.flipkart.model;
 
-public record StockRequest() {
+/** One line of a stock reservation or release. */
+public record StockRequest(String productId, int quantity) {
 }
